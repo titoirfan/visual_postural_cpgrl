@@ -1,8 +1,5 @@
-import math
-
 import isaaclab.envs.mdp as mdp
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import DCMotorCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import RayCasterCfg, patterns
@@ -13,24 +10,21 @@ from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from modules.cpg import CPGCfg
 from modules.reflex import ReflexCfg
 
-from .events import resample_velocity_commands
+from .events import resample_velocity_commands, push_by_setting_velocity_local, push_velocity_curriculum
 from .terrains import ROUGH_TERRAINS_CFG, STAIRS_TERRAINS_CFG
-from .terrains import EVAL_FLAT_TERRAINS_CFG, EVAL_DISCRETE_TERRAINS_CFG, EVAL_ROUGH_TERRAINS_CFG, EVAL_WAVE_TERRAINS_CFG
+from .terrains import EVAL_FLAT_TERRAINS_CFG, EVAL_DISCRETE_TERRAINS_CFG, EVAL_ROUGH_TERRAINS_CFG, EVAL_WAVE_TERRAINS_CFG, EVAL_STAIRS_TERRAINS_CFG
 
 from .unitree_a1_env_cfg import UnitreeA1FlatEnvCfg
 
 
 @configclass
 class CPGUnitreeA1FlatEnvCfg(UnitreeA1FlatEnvCfg):
-    # Simulation decimation (policy is queried every n time steps)
-    decimation = 10
-
     # Action space is CPG parameters - mu, omega, psi
     action_space = 12
     action_scale = 0.5
 
-    # Observation space - 45 + foot contact states (4) + rx, ry, theta, rx_dot, ry_dot, omega (24)
-    observation_space = 73
+    # Observation space - 45 + foot contact states (4) + rx, ry, sin theta, cos theta, rx_dot, ry_dot, omega (28)
+    observation_space = 77
 
     # CPG config
     cpg_config: CPGCfg = CPGCfg()
@@ -40,7 +34,7 @@ class CPGUnitreeA1FlatEnvCfg(UnitreeA1FlatEnvCfg):
 
     # reward scales
     lin_vel_reward_scale = 2.0
-    yaw_rate_reward_scale = 1.0  # Visual CPG-RL: 0.5
+    yaw_rate_reward_scale = 1.0
 
     # penalty scales
     z_vel_reward_scale = -2.0
@@ -54,120 +48,82 @@ class CPGUnitreeA1FlatEnvCfg(UnitreeA1FlatEnvCfg):
     undesired_contact_reward_scale = 0.0
     flat_orientation_reward_scale = 0.0
 
-    x_vel_reward_scale = 0.0  # Visual CPG-RL: 3.0
-    y_vel_reward_scale = 0.0  # Visual CPG-RL: 0.75
-
     # Visualization
     debug_vis = True
 
     # Reflexes and exteroception
-    enable_reflex_network = True
-    enable_exteroception = True
+    enable_reflex_network = False
+    enable_exteroception = False
+
+    reflex_config: ReflexCfg = ReflexCfg()
+
+    # Height scanner for perceptive locomotion
+    height_scanner = RayCasterCfg(
+        prim_path="/World/envs/env_.*/Robot/trunk",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+        attach_yaw_only=True,
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(0.9, 0.6)),
+        debug_vis=False,
+        mesh_prim_paths=["/World/ground"],
+    )
 
     if enable_reflex_network:
-        reflex_config: ReflexCfg = ReflexCfg()
-        reflex_config.skip_network = False
-
         action_space += 12
         observation_space += 12
 
     if enable_exteroception:
-        # Height scanner for perceptive locomotion
-        height_scanner = RayCasterCfg(
-            prim_path="/World/envs/env_.*/Robot/trunk",
-            offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
-            attach_yaw_only=True,
-            pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[0.9, 0.6]),
-            # pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),  # For stairs
-            debug_vis=False,
-            mesh_prim_paths=["/World/ground"],
-        )
-
         observation_space += 70
-        # observation_space += 187  # For stairs
+    state_space = observation_space
 
     def __post_init__(self):
         super().__post_init__()
 
         # Simulation config
-        self.sim.dt = 1 / 1000.0
+        self.sim.dt = 1.0 / 1000.0
+        self.decimation = 10
         self.sim.render_interval = self.decimation
+
+        # Match sensor update periods
+        self.contact_sensor.update_period = self.sim.dt
+        self.height_scanner.update_period = self.decimation * self.sim.dt
 
         # Commands
         # These commands are higher than Visual CPG-RL's to allow the robot cross the large curriculum levels
         self.commands.lin_vel_x_ranges = (-0.6, 0.6)
         self.commands.lin_vel_y_ranges = (-0.6, 0.6)
 
-        # Disable observation noises
-        self.observation_noises.enable = False
-
         # Lower robot spawn location (previously 0.42)
         self.robot.init_state.pos = (0.0, 0.0, 0.35)
 
-        # Fix the robot's PD gains
-        self.robot.actuators["base_legs"] = DCMotorCfg(
-            joint_names_expr=[".*_hip_joint", ".*_thigh_joint", ".*_calf_joint"],
-            effort_limit=33.5,
-            saturation_effort=33.5,
-            velocity_limit=21.0,
-            stiffness=100.0,
-            damping=2.0,
-            friction=0.0,
-        )
+        # Increase the robot's joint PD gains
+        self.robot.actuators["base_legs"].stiffness = 100.0
+        self.robot.actuators["base_legs"].damping = 2.0
 
         # Events
         # On startup
-        self.events.startup_pd_gains = EventTerm(
-            func=mdp.randomize_actuator_gains,
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-                "stiffness_distribution_params": (0.8, 1.2),
-                "damping_distribution_params": (0.8, 1.2),
-                "operation": "scale",
-            },
-        )
+        self.events.physics_material.params["static_friction_range"] = (0.8, 1.2)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.6, 1.0)
 
-        self.events.startup_foot_frictions = EventTerm(
-            func=mdp.randomize_rigid_body_material,
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
-                "static_friction_range": (0.3, 1.0),
-                "dynamic_friction_range": (0.3, 1.0),
-                "restitution_range": (0.0, 0.0),
-                "num_buckets": 256,
-                "make_consistent": True,
-            },
-        )
-
-        # On reset
+        self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
         self.events.scale_link_masses = EventTerm(
             func=mdp.randomize_rigid_body_mass,
-            mode="reset",
+            mode="startup",
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-                "mass_distribution_params": (0.7, 1.3),
+                "mass_distribution_params": (0.9, 1.1),
                 "operation": "scale",
-            },
-        )
-
-        self.events.add_base_mass = EventTerm(
-            func=mdp.randomize_rigid_body_mass,
-            mode="reset",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names="trunk"),
-                "mass_distribution_params": (0.0, 5.0),
-                "operation": "add",
             },
         )
 
         # Interval-based
         self.events.push_robot = EventTerm(
-            func=mdp.push_by_setting_velocity,
+            func=push_velocity_curriculum,
             mode="interval",
-            interval_range_s=(15, 15),
-            params={"velocity_range": {"x": (-0.035, 0.035), "y": (-0.035, 0.035)}},
+            interval_range_s=(8, 12),
+            params={
+                "push_magnitudes": [0.25, 0.5, 0.75, 1.0],  # m/s
+                "total_num_steps": 48 * 800,  # num_steps_per_env * max_iterations
+            },
         )
 
         self.events.resample_commands = EventTerm(
@@ -188,7 +144,7 @@ class CPGUnitreeA1RoughEnvCfg(CPGUnitreeA1FlatEnvCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         terrain_generator=ROUGH_TERRAINS_CFG,
-        max_init_terrain_level=5,
+        max_init_terrain_level=ROUGH_TERRAINS_CFG.num_rows - 1,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -213,7 +169,20 @@ class CPGUnitreeA1RoughEnvCfg(CPGUnitreeA1FlatEnvCfg):
 class CPGUnitreeA1StairsEnvCfg(CPGUnitreeA1RoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+
+        # Change terrain
         self.terrain.terrain_generator = STAIRS_TERRAINS_CFG
+
+        # Expand height scanner
+        self.height_scanner.pattern_cfg.size = (1.6, 1.0)
+
+        # Enable exteroception and reflexes
+        self.enable_exteroception = True
+        self.enable_reflex_network = True
+
+        self.action_space = 24
+        self.observation_space = 77 + 3 + 12 + 187
+        self.state_space = self.observation_space
 
 
 @configclass
@@ -234,8 +203,8 @@ class CPGUnitreeA1FlatEnvCfg_PLAY(CPGUnitreeA1FlatEnvCfg):
         # Disable on-reset randomizations
         self.events.add_base_mass = None
         self.events.scale_link_masses = None
-        self.events.startup_pd_gains = None
-        self.events.startup_foot_frictions = None
+        self.events.physics_material.params["static_friction_range"] = (1.0, 1.0)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.8, 0.8)
 
         # Fix the CPG design parameters
         self.cpg_config.use_fixed_initialization = True
@@ -267,8 +236,8 @@ class CPGUnitreeA1RoughEnvCfg_PLAY(CPGUnitreeA1RoughEnvCfg):
         # Disable on-reset randomizations
         self.events.add_base_mass = None
         self.events.scale_link_masses = None
-        self.events.startup_pd_gains = None
-        self.events.startup_foot_frictions = None
+        self.events.physics_material.params["static_friction_range"] = (1.0, 1.0)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.8, 0.8)
 
         # Fix the CPG design parameters
         self.cpg_config.use_fixed_initialization = True
@@ -278,7 +247,20 @@ class CPGUnitreeA1RoughEnvCfg_PLAY(CPGUnitreeA1RoughEnvCfg):
 class CPGUnitreeA1StairsEnvCfg_PLAY(CPGUnitreeA1RoughEnvCfg_PLAY):
     def __post_init__(self):
         super().__post_init__()
+
+        # Change terrain
         self.terrain.terrain_generator = STAIRS_TERRAINS_CFG
+
+        # Expand height scanner
+        self.height_scanner.pattern_cfg.size = (1.6, 1.0)
+
+        # Enable exteroception and reflexes
+        self.enable_exteroception = True
+        self.enable_reflex_network = True
+
+        self.action_space = 24
+        self.observation_space = 77 + 3 + 12 + 187
+        self.state_space = self.observation_space
 
 
 @configclass
@@ -288,7 +270,6 @@ class CPGUnitreeA1RoughEnvCfg_EVAL(CPGUnitreeA1RoughEnvCfg):
 
         self.episode_length_s = 30.0
         self.seed = 42
-        self.terminate_on_thigh_contacts = False
 
         self.eval_mode = True
         self.eval_scheduled_velocity = False
@@ -304,7 +285,7 @@ class CPGUnitreeA1RoughEnvCfg_EVAL(CPGUnitreeA1RoughEnvCfg):
         self.commands.sample_standing_still_envs = False
 
         # env_spacing is unused when using TerrainGenerator
-        self.scene.num_envs = 64
+        self.scene.num_envs = 1024
 
         # Terrain
         self.terrain = TerrainImporterCfg(
@@ -326,9 +307,6 @@ class CPGUnitreeA1RoughEnvCfg_EVAL(CPGUnitreeA1RoughEnvCfg):
             debug_vis=False,
         )
 
-        # Disable observation noises
-        self.observation_noises.enable = False
-
         # Disable command resampling
         self.events.resample_commands = None
 
@@ -337,11 +315,10 @@ class CPGUnitreeA1RoughEnvCfg_EVAL(CPGUnitreeA1RoughEnvCfg):
         self.events.push_robot = None
 
         # Disable on-reset randomizations
-        self.events.reset_base = None
         self.events.add_base_mass = None
         self.events.scale_link_masses = None
-        self.events.startup_pd_gains = None
-        self.events.startup_foot_frictions = None
+        self.events.physics_material.params["static_friction_range"] = (1.0, 1.0)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.8, 0.8)
 
         # Fix the CPG design parameters
         self.cpg_config.use_fixed_initialization = True
@@ -374,7 +351,7 @@ class CPGUnitreeA1RoughEnvCfg_EVAL_PushFlat(CPGUnitreeA1RoughEnvCfg_EVAL):
         super().__post_init__()
 
         self.events.push_robot = EventTerm(
-            func=mdp.push_by_setting_velocity,
+            func=push_by_setting_velocity_local,
             mode="interval",
             interval_range_s=(5, 5),
             params={"velocity_range": {"x": (0.0, 0.0), "y": (1.0, 1.0)}},
@@ -403,42 +380,35 @@ class CPGUnitreeA1RoughEnvCfg_EVAL_PushWave(CPGUnitreeA1RoughEnvCfg_EVAL_PushFla
 
 
 @configclass
-class CPGUnitreeA1RoughEnvCfg_EVAL_StabilityFront(CPGUnitreeA1RoughEnvCfg_EVAL):
+class CPGUnitreeA1RoughEnvCfg_EVAL_Gait(CPGUnitreeA1RoughEnvCfg_EVAL):
+    def __post_init__(self):
+        super().__post_init__()
+        self.episode_length_s = 8.0
+
+
+@configclass
+class CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideS(CPGUnitreeA1RoughEnvCfg_EVAL):
     def __post_init__(self):
         super().__post_init__()
 
         self.episode_length_s = 9.0
         self.events.push_robot = EventTerm(
-            func=mdp.push_by_setting_velocity,
+            func=push_by_setting_velocity_local,
             mode="interval",
             interval_range_s=(5, 5),
-            params={"velocity_range": {"x": (2.1, 2.1), "y": (0.0, 0.0)}},
+            params={"velocity_range": {"x": (0.0, 0.0), "y": (0.5, 0.5)}},
         )
 
 
 @configclass
-class CPGUnitreeA1RoughEnvCfg_EVAL_StabilityBack(CPGUnitreeA1RoughEnvCfg_EVAL_StabilityFront):
-    def __post_init__(self):
-        super().__post_init__()
-        self.events.push_robot.params = {"velocity_range": {"x": (-0.9, -0.9), "y": (0.0, 0.0)}}
-
-
-@configclass
-class CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideS(CPGUnitreeA1RoughEnvCfg_EVAL_StabilityFront):
-    def __post_init__(self):
-        super().__post_init__()
-        self.events.push_robot.params = {"velocity_range": {"x": (0.0, 0.0), "y": (0.5, 0.5)}}
-
-
-@configclass
-class CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideM(CPGUnitreeA1RoughEnvCfg_EVAL_StabilityFront):
+class CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideM(CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideS):
     def __post_init__(self):
         super().__post_init__()
         self.events.push_robot.params = {"velocity_range": {"x": (0.0, 0.0), "y": (1.0, 1.0)}}
 
 
 @configclass
-class CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideL(CPGUnitreeA1RoughEnvCfg_EVAL_StabilityFront):
+class CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideL(CPGUnitreeA1RoughEnvCfg_EVAL_StabilitySideS):
     def __post_init__(self):
         super().__post_init__()
         self.events.push_robot.params = {"velocity_range": {"x": (0.0, 0.0), "y": (1.5, 1.5)}}
@@ -454,3 +424,79 @@ class CPGUnitreeA1RoughEnvCfg_EVAL_Tracking(CPGUnitreeA1RoughEnvCfg_EVAL):
 
         self.terrain.terrain_generator = EVAL_ROUGH_TERRAINS_CFG
         self.events.push_robot = None
+
+
+@configclass
+class CPGUnitreeA1RoughEnvCfg_EVAL_TrackingDiscrete(CPGUnitreeA1RoughEnvCfg_EVAL_Tracking):
+    def __post_init__(self):
+        super().__post_init__()
+        self.terrain.terrain_generator = EVAL_DISCRETE_TERRAINS_CFG
+
+
+@configclass
+class CPGUnitreeA1RoughEnvCfg_EVAL_StressHeavy(CPGUnitreeA1RoughEnvCfg_EVAL_PushDiscrete):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.events.add_base_mass = EventTerm(
+            func=mdp.randomize_rigid_body_mass,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names="trunk"),
+                "mass_distribution_params": (6.0, 6.0),
+                "operation": "add",
+            },
+        )
+
+
+@configclass
+class CPGUnitreeA1RoughEnvCfg_EVAL_StressSlippery(CPGUnitreeA1RoughEnvCfg_EVAL_PushDiscrete):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.events.physics_material.params["static_friction_range"] = (0.4, 0.4)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.3, 0.3)
+
+
+@configclass
+class CPGUnitreeA1RoughEnvCfg_EVAL_StressHeavySlippery(CPGUnitreeA1RoughEnvCfg_EVAL_StressHeavy):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.events.physics_material.params["static_friction_range"] = (0.4, 0.4)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.3, 0.3)
+
+
+@configclass
+class CPGUnitreeA1StairsEnvCfg_EVAL(CPGUnitreeA1RoughEnvCfg_EVAL):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.episode_length_s = 10.0
+
+        # Change terrain
+        self.terrain.terrain_generator = EVAL_STAIRS_TERRAINS_CFG
+
+        # Expand height scanner
+        self.height_scanner.pattern_cfg.size = (1.6, 1.0)
+
+        # Enable exteroception and reflexes
+        self.enable_exteroception = True
+        self.enable_reflex_network = True
+
+        self.action_space = 24
+        self.observation_space = 77 + 3 + 12 + 187
+        self.state_space = self.observation_space
+
+
+@configclass
+class CPGUnitreeA1StairsEnvCfg_EVAL_Push(CPGUnitreeA1StairsEnvCfg_EVAL):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.events.push_robot = EventTerm(
+            func=push_by_setting_velocity_local,
+            mode="interval",
+            interval_range_s=(5, 5),
+            params={"velocity_range": {"x": (0.0, 0.0), "y": (1.0, 1.0)}},
+        )

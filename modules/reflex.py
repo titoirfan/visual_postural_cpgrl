@@ -18,8 +18,6 @@ class ReflexCfg:
     q_thigh_range = (-0.25, 0.25)
     q_calf_range = (-0.25, 0.25)
 
-    skip_network = False
-
 
 class Reflex:
     def __init__(
@@ -49,6 +47,11 @@ class Reflex:
         self._q_ddot[env_ids, :, :] = 0.0
 
     def get_adjustments(self, actions):
+        # Detach to prevent graph leak
+        self._q = self._q.detach()
+        self._q_dot = self._q_dot.detach()
+        self._q_ddot = self._q_ddot.detach()
+
         # Get target foot position adjustments
         actions_clipped = torch.clip(actions.clone(), -1, 1).reshape(-1, 4, 3)
 
@@ -58,9 +61,6 @@ class Reflex:
             q_desired[:, :, 0] = self.scale_actions(actions_clipped[:, :, 0], *self.cfg.q_hip_range)
             q_desired[:, :, 1] = self.scale_actions(actions_clipped[:, :, 1], *self.cfg.q_thigh_range)
             q_desired[:, :, 2] = self.scale_actions(actions_clipped[:, :, 2], *self.cfg.q_calf_range)
-
-            if self.cfg.skip_network:
-                return q_desired
         else:
             q_desired[:, :, 0] = self.scale_actions(actions_clipped[:, :, 0], *self.cfg.q_x_range)
             q_desired[:, :, 1] = self.scale_actions(actions_clipped[:, :, 1], *self.cfg.q_y_range)
@@ -74,7 +74,7 @@ class Reflex:
             self._q_dot = self._q_dot + self._q_ddot * self.dt
             self._q = self._q + self._q_dot * self.dt
 
-        return self._q
+        return self._q.clone()
 
     def scale_actions(self, x, lower_lim, upper_lim):
         scaled_x = lower_lim + 0.5 * (x + 1.0) * (upper_lim - lower_lim)

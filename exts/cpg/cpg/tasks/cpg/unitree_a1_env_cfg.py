@@ -42,6 +42,7 @@ class EventCfg:
             "dynamic_friction_range": (0.6, 0.6),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,
+            "make_consistent": True,
         },
     )
 
@@ -55,7 +56,7 @@ class EventCfg:
         },
     )
 
-    startup_foot_frictions = None
+    scale_link_masses = None
     startup_pd_gains = None
 
     # on reset
@@ -94,8 +95,6 @@ class EventCfg:
         },
     )
 
-    scale_link_masses = None
-
     # interval
     push_robot = None
     resample_commands = None
@@ -128,7 +127,7 @@ class ObservationNoisesCfg:
         "base_projected_gravity": UniformNoiseCfg(n_min=-0.05, n_max=0.05),
         "joint_pos": UniformNoiseCfg(n_min=-0.01, n_max=0.01),
         "joint_vel": UniformNoiseCfg(n_min=-1.5, n_max=1.5),
-        "height_scan": UniformNoiseCfg(n_min=-0.1, n_max=0.1),
+        "height_scan": UniformNoiseCfg(n_min=-0.01, n_max=0.01),
     }
 
 
@@ -140,10 +139,11 @@ class UnitreeA1FlatEnvCfg(DirectRLEnvCfg):
     action_scale = 0.25
     action_space = 12
     observation_space = 45
-    state_space = 0
+    state_space = observation_space
 
     # eval mode
     eval_mode = False
+    save_eval_logs = False
     eval_scheduled_velocity = False
 
     # commands
@@ -238,6 +238,7 @@ class UnitreeA1FlatEnvCfg(DirectRLEnvCfg):
 class UnitreeA1RoughEnvCfg(UnitreeA1FlatEnvCfg):
     # env
     observation_space = 232
+    state_space = observation_space
 
     # curriculum
     enable_curriculum = True

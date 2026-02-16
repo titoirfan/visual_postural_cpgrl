@@ -71,17 +71,17 @@ class UnitreeA1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
-class CPGUnitreeA1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    num_steps_per_env = 24
+class UnitreeA1BenchmarkPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 48
     max_iterations = 1500
-    save_interval = 50
-    experiment_name = "cpg_unitree_a1_flat"
+    save_interval = 1501
+    experiment_name = "direct_unitree_a1_benchmark"
     empirical_normalization = True
     policy = RslRlPpoActorCriticRecurrentCfg(
-        init_noise_std=1.0,
         rnn_type="lstm",
+        rnn_hidden_dim=256,
         rnn_num_layers=1,
-        rnn_hidden_dim=512,
+        init_noise_std=1.0,
         actor_hidden_dims=[256, 128],
         critic_hidden_dims=[256, 128],
         activation="elu",
@@ -103,17 +103,17 @@ class CPGUnitreeA1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
-class CPGUnitreeA1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    num_steps_per_env = 24
-    max_iterations = 1500
-    save_interval = 100
-    experiment_name = "cpg_unitree_a1_rough"
+class CPGUnitreeA1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 48
+    max_iterations = 1000
+    save_interval = 1001
+    experiment_name = "cpg_unitree_a1_flat"
     empirical_normalization = True
     policy = RslRlPpoActorCriticRecurrentCfg(
-        init_noise_std=1.0,
         rnn_type="lstm",
+        rnn_hidden_dim=256,
         rnn_num_layers=1,
-        rnn_hidden_dim=512,
+        init_noise_std=1.0,
         actor_hidden_dims=[256, 128],
         critic_hidden_dims=[256, 128],
         activation="elu",
@@ -122,7 +122,39 @@ class CPGUnitreeA1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.01,
+        entropy_coef=0.002,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-3,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+
+
+@configclass
+class CPGUnitreeA1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 48
+    max_iterations = 1000
+    save_interval = 1001
+    experiment_name = "cpg_unitree_a1_rough"
+    empirical_normalization = True
+    policy = RslRlPpoActorCriticRecurrentCfg(
+        rnn_type="lstm",
+        rnn_hidden_dim=256,
+        rnn_num_layers=1,
+        init_noise_std=1.0,
+        actor_hidden_dims=[256, 128],
+        critic_hidden_dims=[256, 128],
+        activation="elu",
+    )
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.002,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=1.0e-3,
@@ -136,16 +168,16 @@ class CPGUnitreeA1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 @configclass
 class CPGUnitreeA1StairsPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    num_steps_per_env = 24
-    max_iterations = 1500
-    save_interval = 100
+    num_steps_per_env = 48
+    max_iterations = 1000
+    save_interval = 1001
     experiment_name = "cpg_unitree_a1_stairs"
     empirical_normalization = True
     policy = RslRlPpoActorCriticRecurrentCfg(
-        init_noise_std=1.0,
         rnn_type="lstm",
-        rnn_num_layers=1,
         rnn_hidden_dim=512,
+        rnn_num_layers=1,
+        init_noise_std=1.0,
         actor_hidden_dims=[256, 128],
         critic_hidden_dims=[256, 128],
         activation="elu",
@@ -154,7 +186,7 @@ class CPGUnitreeA1StairsPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.01,
+        entropy_coef=0.002,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=1.0e-3,

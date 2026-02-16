@@ -56,6 +56,16 @@ gym.register(
     },
 )
 
+gym.register(
+    id="Direct-Benchmark-Unitree-A1-v0",
+    entry_point=f"{__name__}.unitree_a1_env:UnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.benchmark_env_cfg:UnitreeA1BenchmarkEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeA1BenchmarkPPORunnerCfg",
+    },
+)
+
 # CPG environments
 gym.register(
     id="CPG-Flat-Unitree-A1-v0",
@@ -199,21 +209,11 @@ gym.register(
 )
 
 gym.register(
-    id="CPG-Rough-Unitree-A1-Eval-Stability-Front-v0",
+    id="CPG-Rough-Unitree-A1-Eval-Gait-v0",
     entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_StabilityFront",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
-    },
-)
-
-gym.register(
-    id="CPG-Rough-Unitree-A1-Eval-Stability-Back-v0",
-    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_StabilityBack",
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_Gait",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
     },
 )
@@ -255,5 +255,105 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_Tracking",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="CPG-Rough-Unitree-A1-Eval-Tracking-Discrete-v0",
+    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_TrackingDiscrete",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="CPG-Rough-Unitree-A1-Eval-Stress-Heavy-v0",
+    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_StressHeavy",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="CPG-Rough-Unitree-A1-Eval-Stress-Slippery-v0",
+    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_StressSlippery",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="CPG-Rough-Unitree-A1-Eval-Stress-Heavy-Slippery-v0",
+    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1RoughEnvCfg_EVAL_StressHeavySlippery",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1RoughPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="CPG-Stairs-Unitree-A1-Eval-v0",
+    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1StairsEnvCfg_EVAL",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1StairsPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="CPG-Stairs-Unitree-A1-Eval-Push-v0",
+    entry_point=f"{__name__}.cpg_env:CPGUnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.cpg_env_cfg:CPGUnitreeA1StairsEnvCfg_EVAL_Push",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CPGUnitreeA1StairsPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Direct-Benchmark-Unitree-A1-Eval-v0",
+    entry_point=f"{__name__}.unitree_a1_env:UnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.benchmark_env_cfg:UnitreeA1BenchmarkEnvCfg_EVAL",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeA1BenchmarkPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Direct-Benchmark-Unitree-A1-Eval-Discrete-v0",
+    entry_point=f"{__name__}.unitree_a1_env:UnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.benchmark_env_cfg:UnitreeA1BenchmarkEnvCfg_EVAL_IdealDiscrete",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeA1BenchmarkPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Direct-Benchmark-Unitree-A1-Eval-Push-Discrete-v0",
+    entry_point=f"{__name__}.unitree_a1_env:UnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.benchmark_env_cfg:UnitreeA1BenchmarkEnvCfg_EVAL_PushDiscrete",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeA1BenchmarkPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Direct-Benchmark-Unitree-A1-Eval-Gait-v0",
+    entry_point=f"{__name__}.unitree_a1_env:UnitreeA1Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.benchmark_env_cfg:UnitreeA1BenchmarkEnvCfg_EVAL_Gait",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeA1BenchmarkPPORunnerCfg",
     },
 )

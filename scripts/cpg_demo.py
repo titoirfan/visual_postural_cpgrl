@@ -70,7 +70,6 @@ def run_simulator(sim: sim_utils.SimulationContext, entity: Articulation):
 
     cpg.cfg.omega_range = (0.0, 12.566370614)
     cpg.cfg.use_fixed_initialization = True
-    cpg.cfg.use_fixed_robot_height = True
 
     # Use CPG
     mu_x = torch.ones(1, 4, device=sim.device) * 1.0

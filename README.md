@@ -1,7 +1,15 @@
-# CPG-RL for Quadrupedal Locomotion, with Exteroception and Postural Reflexes
+# CPG-RL for Quadrupedal Locomotion, with Exteroception and Postural Adaptation
 
-Supporting code for "Functional Roles of Postural Reflex and Exteroception in Learning-Based CPG-Driven Quadrupedal Locomotion".
+Supporting code and files for "Synergy of Postural Adaptation and Exteroception for Robust CPG-Driven Quadrupedal Locomotion".
 
+
+## Links
+
+- Trained models evaluated in the paper are available [here](https://drive.google.com/file/d/1DhYE_RvU2ClxBJzo0IdZwbjsDN6mu0fX/view?usp=sharing).
+- Source data for reproducing the figures and tables depicted in the paper are available [here](https://drive.google.com/file/d/16_xPgjz9dNGrugBWv9cfmxOzfvYlMGcD/view?usp=sharing).
+
+
+---
 
 ## Dependencies
 - IsaacSim v4.5.0
@@ -33,11 +41,6 @@ To enable exteroception and postural reflex, you can modify `enable_exteroceptio
 You can also evaluate the policy's performance using the `eval.py` script, which will record logs and calculate performance metrics. 
 See `run_evals.sh` for example on how to use the script.
 The recorded logs can be processed using scripts in `scripts/eval`.
-
-
-## Trained models
-
-Trained models are available in `models`.
 
 
 ## Citing this work
