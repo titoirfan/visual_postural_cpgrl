@@ -47,17 +47,13 @@ The recorded logs can be processed using scripts in `scripts/eval`.
 
 ```
 @article{kurniawanSynergyPosturalAdaptation2026,
-  title = {Synergy of Postural Adaptation and Exteroception for Robust {{CPG-driven}} Quadrupedal Locomotion},
+  title = {Synergy of Postural Adaptation and Exteroception for Robust {CPG}-Driven Quadrupedal Locomotion},
   author = {Kurniawan, Irfan Tito and Zhu, Wei and Owaki, Dai and Hayashibe, Mitsuhiro},
   year = 2026,
-  month = jun,
   journal = {Scientific Reports},
   volume = {16},
   number = {1},
   pages = {26406},
-  issn = {2045-2322},
   doi = {10.1038/s41598-026-55491-z},
-  urldate = {2026-08-25},
-  langid = {english}
 }
 ```
